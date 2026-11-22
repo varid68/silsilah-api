@@ -1,0 +1,130 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum PersonRole {
+  FOUNDER
+  ANCHOR
+  MEMBER
+  PARTNER
+}
+
+enum RelationshipKind {
+  SOURCE_BRANCH
+  SOURCE_GROUP
+}
+
+model Dataset {
+  id              String   @id
+  title           String
+  notes           String
+  checksum        String
+  importerVersion Int      @default(1)
+  rootUnionId     String
+  source          Json     @db.JsonB
+  importedAt      DateTime @default(now())
+  people          Person[]
+  branches        Branch[]
+  unions          FamilyUnion[]
+  childLinks      ChildLink[]
+  memberships     UnionPartner[]
+}
+
+model Person {
+  id               String     @id
+  datasetId        String
+  dataset          Dataset    @relation(fields: [datasetId], references: [id])
+  name             String
+  searchName       String
+  generation       Int
+  role             PersonRole
+  branchId         String?
+  branch           Branch?    @relation("BranchMembers", fields: [branchId], references: [id])
+  anchoredBranches Branch[]   @relation("BranchAnchor")
+  sourceLabel      String?
+  sourcePath       String
+  annotations      String[]
+  source           Json       @db.JsonB
+  active           Boolean    @default(true)
+  managedBy        String     @default("manual")
+  unions           UnionPartner[]
+  parentGroups     ChildLink[]
+  createdAt        DateTime   @default(now())
+  updatedAt        DateTime   @updatedAt
+
+  @@index([datasetId, active])
+  @@index([branchId, generation])
+  @@index([searchName])
+}
+
+model Branch {
+  id             String  @id
+  datasetId      String
+  dataset        Dataset @relation(fields: [datasetId], references: [id])
+  anchorId       String  @unique
+  anchor         Person  @relation("BranchAnchor", fields: [anchorId], references: [id])
+  sourceFamilyId Int
+  position       Int
+  active         Boolean @default(true)
+  managedBy      String  @default("manual")
+  members        Person[] @relation("BranchMembers")
+
+  @@index([datasetId, active, position])
+}
+
+model FamilyUnion {
+  id         String         @id
+  datasetId  String
+  dataset    Dataset        @relation(fields: [datasetId], references: [id])
+  label      String?
+  note       String?
+  position   Int
+  sourcePath String
+  source     Json           @db.JsonB
+  active     Boolean        @default(true)
+  managedBy  String         @default("manual")
+  partners   UnionPartner[]
+  children   ChildLink[]
+
+  @@index([datasetId, active, position])
+}
+
+model UnionPartner {
+  unionId   String
+  union     FamilyUnion @relation(fields: [unionId], references: [id])
+  personId  String
+  person    Person      @relation(fields: [personId], references: [id])
+  datasetId String
+  dataset   Dataset     @relation(fields: [datasetId], references: [id])
+  position  Int
+  active    Boolean     @default(true)
+  managedBy String      @default("manual")
+
+  @@id([unionId, personId])
+  @@index([datasetId, active])
+  @@index([personId])
+}
+
+model ChildLink {
+  id        String           @id
+  datasetId String
+  dataset   Dataset          @relation(fields: [datasetId], references: [id])
+  unionId   String
+  union     FamilyUnion      @relation(fields: [unionId], references: [id])
+  childId   String
+  child     Person           @relation(fields: [childId], references: [id])
+  position  Int
+  kind      RelationshipKind
+  active    Boolean          @default(true)
+  managedBy String           @default("manual")
+
+  @@unique([unionId, childId])
+  @@index([datasetId, active])
+  @@index([childId])
+}
