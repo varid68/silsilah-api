@@ -1,0 +1,22 @@
+{
+  "name": "@silsilah/family",
+  "version": "1.0.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "typesVersions": { "*": { "import": ["dist/import.d.ts"] } },
+  "exports": {
+    ".": { "types": "./dist/index.d.ts", "default": "./dist/index.js" },
+    "./import": { "types": "./dist/import.d.ts", "default": "./dist/import.js" }
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "test": "tsx --test test/*.test.ts"
+  },
+  "dependencies": { "zod": "3.25.76" },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "tsx": "^4.20.6",
+    "typescript": "5.8.3"
+  }
+}
