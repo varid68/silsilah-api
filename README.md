@@ -21,3 +21,17 @@ Render menyediakan `PORT`. Health Check Path: `/api/v1/health`.
 
 Migrasi dan impor data tidak dijalankan sebagai bagian deploy. Jangan unggah
 file `.env`, URI admin, atau JSON keluarga. API membaca data dari Supabase.
+
+## Nomor HP yang dibagikan
+
+Terapkan migrasi sebelum merilis versi API yang menyediakan
+`GET /api/v1/members/:personId/phone`. Endpoint memakai kunci baca keluarga yang
+sama dengan endpoint data lainnya dan tidak memerlukan akun per anggota. Tanpa
+izin berbagi, API mengembalikan `{"phoneNumber":null}`. Respons tidak di-cache.
+Nomor tidak ikut di respons pohon atau daftar anggota.
+
+Aktifkan `PersonPrivateContact.phoneShared` hanya jika pemilik nomor menyetujui
+akses bagi seluruh pengguna aplikasi. Role runtime `silsilah_reader` hanya perlu
+`SELECT` pada view `SharedPersonPhone`, bukan tabel `PersonPrivateContact`.
+Jika nama role berbeda, atau role dibuat setelah migrasi, berikan `SELECT` pada
+view itu secara terpisah. Jangan mengekspos skema keluarga ke Data API Supabase.

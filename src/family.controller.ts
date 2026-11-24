@@ -22,4 +22,8 @@ export class FamilyController {
 
   @Get('members/:personId')
   detail(@Param('personId') id: string) { return this.family.focus(id); }
+
+  @Get('members/:personId/phone')
+  @Header('Cache-Control', 'private, no-store')
+  phone(@Param('personId') id: string) { return this.family.sharedPhone(id); }
 }

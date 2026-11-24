@@ -72,6 +72,31 @@ describe('Real PostgreSQL import + read-only Prisma + Nest HTTP', () => {
       await expect(runtime.$executeRawUnsafe('UPDATE "Person" SET name = name WHERE false')).rejects.toThrow();
     } finally { await runtime.$disconnect(); }
   });
+  test('member phone respects opt-in changes without leaking into tree or member payloads', async () => {
+    const personId = data().graph.people.find(p => p.role === 'MEMBER')!.id;
+    const phoneNumber = '+12025550142';
+    const path = `/api/v1/members/${encodeURIComponent(personId)}`;
+    await admin.personPrivateContact.create({ data: { personId, phoneNumber } });
+    await request(app.getHttpServer()).get(`${path}/phone`).expect(200, { phoneNumber: null });
+    await admin.personPrivateContact.update({ where: { personId }, data: { phoneShared: true } });
+    await request(app.getHttpServer()).get(`${path}/phone`).expect(200, { phoneNumber });
+    for (const endpoint of [path, '/api/v1/tree', '/api/v1/members']) {
+      const response = await request(app.getHttpServer()).get(endpoint).expect(200);
+      expect(response.text).not.toContain('phoneNumber');
+      expect(response.text).not.toContain(phoneNumber);
+    }
+    const runtime = new PrismaClient();
+    try {
+      await expect(runtime.personPrivateContact.findMany()).rejects.toThrow();
+    } finally {
+      await runtime.$disconnect();
+    }
+    await admin.person.update({ where: { id: personId }, data: { active: false } });
+    await request(app.getHttpServer()).get(`${path}/phone`).expect(200, { phoneNumber: null });
+    await admin.person.update({ where: { id: personId }, data: { active: true } });
+    await admin.personPrivateContact.update({ where: { personId }, data: { phoneShared: false } });
+    await request(app.getHttpServer()).get(`${path}/phone`).expect(200, { phoneNumber: null });
+  });
   test('a corrected source preserves identity, archives removed rows, and retains manual additions', async () => {
     const inafah = data().graph.people.find(p => p.name === 'Inafah')!;
     const missing = data().graph.people.find(p => p.name === 'Farid Tanwir')!;

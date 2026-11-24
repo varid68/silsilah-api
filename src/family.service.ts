@@ -51,6 +51,7 @@ export class FamilyService {
       },
       people: people.map(p => ({
         id: p.id, name: p.name, searchName: p.searchName, generation: p.generation,
+        domicileCity: p.domicileCity,
         role: p.role, branchId: p.branchId, sourceLabel: p.sourceLabel,
         sourcePath: p.sourcePath, annotations: p.annotations,
       })),
@@ -73,6 +74,15 @@ export class FamilyService {
 
   async summary() { return summarize(await this.graph()); }
   async list(query: MemberQuery) { return members(await this.graph(), query); }
+  async sharedPhone(personId: string): Promise<{ phoneNumber: string | null }> {
+    const datasetId = process.env.DATASET_ID ?? 'asrori';
+    const [row] = await this.prisma.$queryRaw<Array<{ phoneNumber: string }>>`
+      SELECT "phoneNumber" FROM "SharedPersonPhone"
+      WHERE "datasetId" = ${datasetId} AND "personId" = ${personId}
+    `;
+    return { phoneNumber: row?.phoneNumber ?? null };
+  }
+
   async focus(id: string): Promise<PersonFocus> {
     const focus = focusPerson(await this.graph(), id);
     if (!focus) throw new NotFoundException('Anggota tidak ditemukan.');

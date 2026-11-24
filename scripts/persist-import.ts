@@ -40,7 +40,7 @@ export async function persistImport(
     const managed = { datasetId: graph.dataset.id, active: true, managedBy: 'json' };
     for (const person of graph.people) {
       // Branches refer back to anchors: create people, then branches, then memberships.
-      const record = { ...person, ...managed, branchId: null, source: json(provenance[person.id]) };
+      const record = { ...person, ...managed, domicileCity: person.domicileCity ?? null, branchId: null, source: json(provenance[person.id]) };
       await tx.person.upsert({ where: { id: person.id }, create: record, update: record });
     }
     for (const branch of graph.branches) {

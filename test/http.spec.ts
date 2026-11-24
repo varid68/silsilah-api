@@ -13,6 +13,7 @@ import { readConfig } from '../src/config';
 import { setupApp } from '../src/setup';
 
 const graph = normalizeSource(JSON.parse(readFileSync(resolve(__dirname, '../../../data/silsilah-keluarga.json'), 'utf8'))).graph;
+const sharedExamplePhone = '+12025550142';
 describe('Read-only HTTP API', () => {
   let app: INestApplication;
   beforeAll(async () => {
@@ -22,6 +23,7 @@ describe('Read-only HTTP API', () => {
         summary: () => summarize(graph),
         graph: () => graph,
         list: (query: object) => members(graph, query),
+        sharedPhone: (id: string) => ({ phoneNumber: id === 'example-shared' ? sharedExamplePhone : null }),
         focus: (id: string) => {
           const result = focusPerson(graph, id);
           if (!result) throw new NotFoundException();
@@ -58,6 +60,22 @@ describe('Read-only HTTP API', () => {
     await request(app.getHttpServer()).post('/api/v1/members').send({ name: 'No' }).expect(404);
     await request(app.getHttpServer()).patch('/api/v1/members/example').send({ name: 'No' }).expect(404);
     await request(app.getHttpServer()).delete('/api/v1/members/example').expect(404);
+  });
+  test('phone endpoint requires the family key and never allows caching', async () => {
+    process.env.API_READ_TOKEN = 'test-family-key-12345678901234567890';
+    try {
+      await request(app.getHttpServer()).get('/api/v1/members/example-shared/phone').expect(401);
+      await request(app.getHttpServer()).get('/api/v1/members/example-shared/phone')
+        .set('x-family-key', process.env.API_READ_TOKEN)
+        .expect('Cache-Control', 'private, no-store')
+        .expect(200, { phoneNumber: sharedExamplePhone });
+      await request(app.getHttpServer()).get('/api/v1/members/example-private/phone')
+        .set('x-family-key', process.env.API_READ_TOKEN)
+        .expect('Cache-Control', 'private, no-store')
+        .expect(200, { phoneNumber: null });
+    } finally {
+      delete process.env.API_READ_TOKEN;
+    }
   });
   test('access key is checked, health stays available', async () => {
     process.env.API_READ_TOKEN = 'test-family-key-12345678901234567890';

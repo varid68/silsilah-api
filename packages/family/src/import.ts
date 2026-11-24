@@ -11,6 +11,7 @@ export interface SourceSpouse {
 export interface SourceEntry {
   id?: string;
   name: string;
+  domicileCity?: string;
   label?: string;
   spouse?: string;
   children?: SourceEntry[];
@@ -34,6 +35,7 @@ const entrySchema: z.ZodType<SourceEntry> = z.lazy(() =>
   z.object({
     id: explicitId.optional(),
     name,
+    domicileCity: z.string().trim().min(1).max(100).optional(),
     label: z.string().min(1).max(64).optional(),
     spouse: name.optional(),
     children: z.array(entrySchema).max(500).optional(),
@@ -90,13 +92,14 @@ export function normalizeSource(input: unknown, datasetId = 'asrori'): Normalize
   ];
   const addPerson = (
     key: string, value: string, generation: number, branchId: string | null,
-    role: PersonRole, path: string, raw: unknown, label?: string,
+    role: PersonRole, path: string, raw: unknown, label?: string, domicileCity?: string,
   ) => {
     if (generation > 12 || graph.people.length >= 10000) throw new Error('Source too large/deep');
     const id = `${datasetId}-person-${key}`;
     graph.people.push({
       id, name: value, searchName: normalizeSearch(value), generation, branchId, role,
       sourceLabel: label ?? null, sourcePath: path,
+      ...(domicileCity ? { domicileCity } : {}),
       annotations: [...value.matchAll(/\(([^)]+)\)/g)].map(match => match[1]),
     });
     provenance[id] = raw;
@@ -134,7 +137,7 @@ export function normalizeSource(input: unknown, datasetId = 'asrori'): Normalize
       const childKey = `${key}-c-${keys[index]}`;
       const childPath = `${path}/${index}`;
       const id = addPerson(
-        childKey, child.name, generation, branchId, 'MEMBER', childPath, child, child.label,
+        childKey, child.name, generation, branchId, 'MEMBER', childPath, child, child.label, child.domicileCity,
       );
       link(unionId, id, index);
       addHousehold(child, id, childKey, childPath, generation, branchId, false);

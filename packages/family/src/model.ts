@@ -4,6 +4,7 @@ export type RelationshipKind = 'SOURCE_BRANCH' | 'SOURCE_GROUP';
 export interface Person {
   id: string;
   name: string;
+  domicileCity?: string | null;
   searchName: string;
   generation: number;
   role: PersonRole;
