@@ -4,13 +4,14 @@ Deploy repo API ini dengan Render **Node Web Service**. Biarkan Root Directory k
 
 ```sh
 # Build Command
-npm ci --include=dev && npm run db:generate && npm run build
+npm ci --include=dev && npm run build
 
 # Start Command
 npm start
 ```
 
-`prebuild` membangun `@silsilah/family` dari source yang disertakan di
+`prebuild` menghasilkan Prisma Client dari `prisma/schema.prisma` dan membangun
+`@silsilah/family` dari source yang disertakan di
 `packages/family/`. Folder ini adalah salinan paket bersama pada proyek Silsilah;
 saat kontrak/selector diperbarui, sinkronkan `src/`, manifest, lockfile, dan tsconfig
 dari paket bersama. Jangan sertakan `dist/`, `node_modules/`, atau fixture data keluarga.
