@@ -2,8 +2,10 @@ import 'reflect-metadata';
 import { NotFoundException, type INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import request from 'supertest';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { runInNewContext } from 'node:vm';
 import { focusPerson, members, summarize } from '@silsilah/family';
 import { normalizeSource } from '@silsilah/family/import';
 import { AppModule } from '../src/app.module';
@@ -49,13 +51,20 @@ describe('Read-only HTTP API', () => {
     });
     afterEach(() => jest.restoreAllMocks());
 
-    test('redirects Android browsers to Google Play without a family token', async () => {
-      await request(app.getHttpServer()).get('/share?url=https://example.org')
+    test('serves preview HTML and redirects Android browser navigation to Google Play', async () => {
+      const { text, headers } = await request(app.getHttpServer()).get('/share?url=https://example.org')
         .set('User-Agent', 'Mozilla/5.0 (Linux; Android 15)')
-        .expect('Location', playStoreUrl)
         .expect('Cache-Control', 'no-store')
         .expect('Vary', /User-Agent/i)
-        .expect(302);
+        .expect(200);
+      expect(text).toContain('property="og:image"');
+      const script = text.match(/<script>(.*?)<\/script>/)?.[1];
+      expect(script).toBeDefined();
+      const hash = createHash('sha256').update(script!).digest('base64');
+      expect(headers['content-security-policy']).toContain(`'sha256-${hash}'`);
+      const replace = jest.fn();
+      runInNewContext(script!, { window: { location: { replace } } });
+      expect(replace).toHaveBeenCalledWith(playStoreUrl);
     });
 
     test.each(['Mozilla/5.0 (Windows NT 10.0)', 'Mozilla/5.0 (iPhone)'])('shows an install page for %s', async userAgent => {
@@ -66,6 +75,22 @@ describe('Read-only HTTP API', () => {
         .expect('Vary', /User-Agent/i)
         .expect(200);
       expect(text).toContain(`href="${playStoreUrl}"`);
+      expect(text).not.toContain('<script>');
+    });
+
+    test('gives WhatsApp a description and an accessible PNG preview', async () => {
+      const { text } = await request(app.getHttpServer()).get('/share')
+        .set('User-Agent', 'WhatsApp/2.0')
+        .expect('Content-Type', /text\/html/)
+        .expect(200);
+      expect(text).toContain('property="og:description" content="Jelajahi pohon keluarga');
+      expect(text).toContain('property="og:image" content="https://silsilah-api.vercel.app/share-preview.png"');
+
+      const { body } = await request(app.getHttpServer()).get('/share-preview.png')
+        .expect('Content-Type', 'image/png')
+        .expect('Cross-Origin-Resource-Policy', 'cross-origin')
+        .expect(200);
+      expect(body.subarray(0, 8)).toEqual(Buffer.from('89504e470d0a1a0a', 'hex'));
     });
 
     test('publishes Android Digital Asset Links while keeping family data protected', async () => {
