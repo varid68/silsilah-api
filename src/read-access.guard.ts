@@ -1,10 +1,16 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { createHash, timingSafeEqual } from 'node:crypto';
 import type { Request } from 'express';
 
+export const PublicShareRoute = Reflector.createDecorator<boolean>();
+
 @Injectable()
 export class ReadAccessGuard implements CanActivate {
+  constructor(private readonly reflector: Reflector) {}
+
   canActivate(context: ExecutionContext): boolean {
+    if (this.reflector.get(PublicShareRoute, context.getHandler())) return true;
     const request = context.switchToHttp().getRequest<Request>();
     if (request.path === '/api/v1/health') return true;
     const expected = process.env.API_READ_TOKEN?.trim();

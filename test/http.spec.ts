@@ -35,6 +35,62 @@ describe('Read-only HTTP API', () => {
     await app.init();
   });
   afterAll(async () => { delete process.env.API_READ_TOKEN; await app.close(); });
+
+  describe('public app share links', () => {
+    const playStoreUrl = 'https://play.google.com/store/apps/details?id=com.silsilah';
+    const fingerprint = Array<string>(32).fill('AB').join(':');
+
+    beforeEach(() => {
+      jest.replaceProperty(process, 'env', {
+        ...process.env,
+        API_READ_TOKEN: 'test-family-key-12345678901234567890',
+        ANDROID_APP_LINK_SHA256_FINGERPRINTS: ` ${fingerprint.toLowerCase()} , ${fingerprint} `,
+      });
+    });
+    afterEach(() => jest.restoreAllMocks());
+
+    test('redirects Android browsers to Google Play without a family token', async () => {
+      await request(app.getHttpServer()).get('/share?url=https://example.org')
+        .set('User-Agent', 'Mozilla/5.0 (Linux; Android 15)')
+        .expect('Location', playStoreUrl)
+        .expect('Cache-Control', 'no-store')
+        .expect('Vary', /User-Agent/i)
+        .expect(302);
+    });
+
+    test.each(['Mozilla/5.0 (Windows NT 10.0)', 'Mozilla/5.0 (iPhone)'])('shows an install page for %s', async userAgent => {
+      const { text } = await request(app.getHttpServer()).get('/share')
+        .set('User-Agent', userAgent)
+        .expect('Content-Type', /text\/html/)
+        .expect('Cache-Control', 'no-store')
+        .expect('Vary', /User-Agent/i)
+        .expect(200);
+      expect(text).toContain(`href="${playStoreUrl}"`);
+    });
+
+    test('publishes Android Digital Asset Links while keeping family data protected', async () => {
+      await request(app.getHttpServer()).get('/.well-known/assetlinks.json')
+        .expect('Content-Type', /application\/json/)
+        .expect(200, [{
+          relation: ['delegate_permission/common.handle_all_urls'],
+          target: {
+            namespace: 'android_app',
+            package_name: 'com.silsilah',
+            sha256_cert_fingerprints: [fingerprint],
+          },
+        }]);
+      await request(app.getHttpServer()).get('/api/v1/tree').expect(401);
+      await request(app.getHttpServer()).get('/api/v1/share').expect(404);
+      await request(app.getHttpServer()).get('/app').expect(404);
+    });
+
+    test.each(['', 'invalid', `${fingerprint},invalid`])('rejects invalid or missing fingerprints (%s)', async value => {
+      process.env.ANDROID_APP_LINK_SHA256_FINGERPRINTS = value;
+      await request(app.getHttpServer()).get('/.well-known/assetlinks.json').expect(503);
+      await request(app.getHttpServer()).get('/share').expect(200);
+    });
+  });
+
   test('health and totals', async () => {
     await request(app.getHttpServer()).get('/api/v1/health').expect(200, { status: 'ok' });
     const { body } = await request(app.getHttpServer()).get('/api/v1/family').expect(200);
