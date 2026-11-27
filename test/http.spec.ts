@@ -145,6 +145,12 @@ describe('Read-only HTTP API', () => {
     await request(app.getHttpServer()).patch('/api/v1/members/example').send({ name: 'No' }).expect(404);
     await request(app.getHttpServer()).delete('/api/v1/members/example').expect(404);
   });
+  test('former admin endpoints are unavailable', async () => {
+    await request(app.getHttpServer()).get('/api/v1/admin/members').expect(404);
+    await request(app.getHttpServer()).get('/api/v1/admin/members/example').expect(404);
+    await request(app.getHttpServer()).patch('/api/v1/admin/members/example')
+      .send({ domicileCity: 'Kota Bandung' }).expect(404);
+  });
   test('phone endpoint requires the family key and never allows caching', async () => {
     process.env.API_READ_TOKEN = 'test-family-key-12345678901234567890';
     try {
