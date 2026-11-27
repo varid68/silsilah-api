@@ -83,8 +83,11 @@ describe('Read-only HTTP API', () => {
         .set('User-Agent', 'WhatsApp/2.0')
         .expect('Content-Type', /text\/html/)
         .expect(200);
-      expect(text).toContain('property="og:description" content="Jelajahi pohon keluarga');
-      expect(text).toContain('property="og:image" content="https://silsilah-api.vercel.app/share-preview.png"');
+      expect(text).toContain(
+        'property="og:description" content="Download Bani Asrori apps untuk melihat silsilah bani asrori 5 generasi. Hubungkan setiap generasi"',
+      );
+      expect(text).toContain('property="og:url" content="https://asrori.vercel.app/share"');
+      expect(text).toContain('property="og:image" content="https://asrori.vercel.app/share-preview.png"');
 
       const { body } = await request(app.getHttpServer()).get('/share-preview.png')
         .expect('Content-Type', 'image/png')

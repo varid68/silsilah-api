@@ -1,4 +1,12 @@
-import { Controller, Get, Header, Headers, Res, ServiceUnavailableException, StreamableFile } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Header,
+  Headers,
+  Res,
+  ServiceUnavailableException,
+  StreamableFile,
+} from '@nestjs/common';
 import { createHash } from 'node:crypto';
 import { createReadStream } from 'node:fs';
 import { join } from 'node:path';
@@ -11,8 +19,9 @@ export const sharePreviewPath = 'share-preview.png';
 
 const androidPackage = 'com.silsilah';
 const playStoreUrl = `https://play.google.com/store/apps/details?id=${androidPackage}`;
-const shareOrigin = 'https://silsilah-api.vercel.app';
-const shareDescription = 'Jelajahi pohon keluarga dan kenali hubungan antargenerasi bersama Silsilah.';
+const shareOrigin = 'https://asrori.vercel.app';
+const shareDescription =
+  'Download Bani Asrori apps untuk melihat silsilah bani asrori 5 generasi. Hubungkan setiap generasi';
 const fingerprintPattern = /^(?:[0-9A-F]{2}:){31}[0-9A-F]{2}$/;
 const shareRedirectScript = `window.location.replace(${JSON.stringify(playStoreUrl)});`;
 export const shareRedirectScriptHash = `'sha256-${createHash('sha256').update(shareRedirectScript).digest('base64')}'`;
@@ -42,7 +51,7 @@ const sharePage = (isAndroid: boolean) => `<!doctype html>
 <body>
   <main>
     <h1>Silsilah</h1>
-    <p>Unduh Silsilah untuk menjelajahi pohon keluarga.</p>
+    <p>${shareDescription}</p>
     <a href="${playStoreUrl}">Buka Google Play</a>
   </main>
   ${isAndroid ? `<script>${shareRedirectScript}</script>` : ''}
@@ -55,7 +64,10 @@ export class AppShareController {
   @PublicShareRoute(true)
   @Header('Cache-Control', 'no-store')
   @Header('Content-Type', 'text/html; charset=utf-8')
-  share(@Headers('user-agent') userAgent: string | undefined, @Res({ passthrough: true }) response: Response) {
+  share(
+    @Headers('user-agent') userAgent: string | undefined,
+    @Res({ passthrough: true }) response: Response,
+  ) {
     response.vary('User-Agent');
     return sharePage(/\bAndroid\b/i.test(userAgent ?? ''));
   }
@@ -65,29 +77,38 @@ export class AppShareController {
   @Header('Cache-Control', 'public, max-age=3600')
   @Header('Cross-Origin-Resource-Policy', 'cross-origin')
   sharePreview() {
-    return new StreamableFile(createReadStream(join(__dirname, 'assets/share-preview.png')), {
-      type: 'image/png',
-    });
+    return new StreamableFile(
+      createReadStream(join(__dirname, 'assets/share-preview.png')),
+      {
+        type: 'image/png',
+      },
+    );
   }
 
   @Get(assetLinksPath)
   @PublicShareRoute(true)
   @Header('Content-Type', 'application/json')
   assetLinks() {
-    const fingerprints = (process.env.ANDROID_APP_LINK_SHA256_FINGERPRINTS ?? '')
+    const fingerprints = (
+      process.env.ANDROID_APP_LINK_SHA256_FINGERPRINTS ?? ''
+    )
       .split(',')
-      .map(value => value.trim().toUpperCase());
-    if (fingerprints.some(value => !fingerprintPattern.test(value))) {
-      throw new ServiceUnavailableException('Android App Links signing fingerprints are not configured.');
+      .map((value) => value.trim().toUpperCase());
+    if (fingerprints.some((value) => !fingerprintPattern.test(value))) {
+      throw new ServiceUnavailableException(
+        'Android App Links signing fingerprints are not configured.',
+      );
     }
 
-    return [{
-      relation: ['delegate_permission/common.handle_all_urls'],
-      target: {
-        namespace: 'android_app',
-        package_name: androidPackage,
-        sha256_cert_fingerprints: [...new Set(fingerprints)],
+    return [
+      {
+        relation: ['delegate_permission/common.handle_all_urls'],
+        target: {
+          namespace: 'android_app',
+          package_name: androidPackage,
+          sha256_cert_fingerprints: [...new Set(fingerprints)],
+        },
       },
-    }];
+    ];
   }
 }
