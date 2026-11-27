@@ -31,7 +31,7 @@ const sharePage = (isAndroid: boolean) => `<!doctype html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Silsilah</title>
+  <title>Bani Asrori Apps</title>
   <meta name="description" content="${shareDescription}">
   <meta property="og:type" content="website">
   <meta property="og:title" content="Silsilah">
