@@ -36,3 +36,11 @@ akses bagi seluruh pengguna aplikasi. Role runtime `silsilah_reader` hanya perlu
 `SELECT` pada view `SharedPersonPhone`, bukan tabel `PersonPrivateContact`.
 Jika nama role berbeda, atau role dibuat setelah migrasi, berikan `SELECT` pada
 view itu secara terpisah. Jangan mengekspos skema keluarga ke Data API Supabase.
+
+## Dashboard admin
+
+NestJS menyediakan `GET /api/v1/admin/members` dan `GET` / `PATCH /api/v1/admin/members/:id`.
+Atur `ADMIN_API_TOKEN` yang berbeda dari kunci baca aplikasi dan
+`ADMIN_DATABASE_URL` untuk role PostgreSQL terbatas. Jalankan
+`npm run db:configure-admin` jika role dashboard belum tersedia. Route admin
+memerlukan header `x-admin-key` dari server Next.js dan menyimpan perubahan secara atomik.

@@ -38,10 +38,19 @@ export async function persistImport(
     await tx.branch.updateMany({ where, data: { active: false } });
     await tx.person.updateMany({ where, data: { active: false } });
     const managed = { datasetId: graph.dataset.id, active: true, managedBy: 'json' };
+    // The preceding update locks the existing source rows until commit.
+    const overridden = new Set((await tx.person.findMany({
+      where: { ...where, domicileAdminOverride: true }, select: { id: true },
+    })).map(person => person.id));
     for (const person of graph.people) {
       // Branches refer back to anchors: create people, then branches, then memberships.
-      const record = { ...person, ...managed, domicileCity: person.domicileCity ?? null, branchId: null, source: json(provenance[person.id]) };
-      await tx.person.upsert({ where: { id: person.id }, create: record, update: record });
+      const { domicileCity, ...sourceFields } = person;
+      const record = { ...sourceFields, ...managed, branchId: null, source: json(provenance[person.id]) };
+      await tx.person.upsert({
+        where: { id: person.id },
+        create: { ...record, domicileCity: domicileCity ?? null },
+        update: overridden.has(person.id) ? record : { ...record, domicileCity: domicileCity ?? null },
+      });
     }
     for (const branch of graph.branches) {
       const record = { ...branch, ...managed };

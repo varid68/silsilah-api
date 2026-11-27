@@ -42,6 +42,7 @@ model Person {
   dataset          Dataset    @relation(fields: [datasetId], references: [id])
   name             String
   domicileCity     String?
+  domicileAdminOverride Boolean @default(false)
   searchName       String
   generation       Int
   role             PersonRole

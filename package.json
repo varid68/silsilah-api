@@ -12,6 +12,7 @@
     "test:db": "jest --config jest.db.config.cjs --runInBand",
     "db:generate": "prisma generate --schema=prisma/schema.prisma",
     "db:migrate": "prisma migrate deploy",
+    "db:configure-admin": "node scripts/configure-admin-database.mjs",
     "db:studio": "prisma studio",
     "data:import": "tsx scripts/import-family.ts",
     "dev:local": "tsx scripts/dev-local.ts",

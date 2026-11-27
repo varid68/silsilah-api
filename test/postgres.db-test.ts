@@ -42,6 +42,31 @@ describe('Real PostgreSQL import + read-only Prisma + Nest HTTP', () => {
     expect((await persistImport(admin, data(), true)).status).toBe('imported');
     expect(await admin.person.count()).toBe(246);
   });
+  test('re-import preserves dashboard domisili changes, including an explicit empty value', async () => {
+    const [first, second, third] = data().graph.people;
+    const ids = [first.id, second.id, third.id];
+    await admin.person.update({
+      where: { id: first.id }, data: { domicileCity: 'Kota Bandung', domicileAdminOverride: true },
+    });
+    await admin.person.update({
+      where: { id: second.id }, data: { domicileCity: null, domicileAdminOverride: true },
+    });
+    try {
+      const fresh = data();
+      for (const person of fresh.graph.people) {
+        if (ids.includes(person.id)) person.domicileCity = 'Kota Surabaya';
+      }
+      await persistImport(admin, fresh, true);
+      const rows = await admin.person.findMany({
+        where: { id: { in: ids } }, select: { id: true, domicileCity: true },
+      });
+      const cities = new Map(rows.map(row => [row.id, row.domicileCity]));
+      expect(ids.map(id => cities.get(id))).toEqual(['Kota Bandung', null, 'Kota Surabaya']);
+    } finally {
+      await admin.person.updateMany({ where: { id: { in: ids } }, data: { domicileAdminOverride: false } });
+      await persistImport(admin, data(), true);
+    }
+  });
   test('API searches two Zaenuris without merging and focuses Inafah correctly', async () => {
     const search = await request(app.getHttpServer()).get('/api/v1/members?q=Zaenuri').expect(200);
     expect(search.body.total).toBe(2);
